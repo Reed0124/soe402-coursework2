@@ -1,0 +1,139 @@
+@startuml SOE402_Group7_UML_p2
+!pragma layout smetana
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam classFontSize 13
+skinparam classAttributeIconSize 0
+skinparam nodesep 28
+skinparam ranksep 40
+skinparam ArrowThickness 1.2
+hide circle
+hide empty members
+left to right direction
+
+
+package engine {
+    enum Phase {
+        START
+        DRAW
+        MAIN
+        END
+    }
+
+    class GameConfig <<record>> {
+        + startingHealth: int
+        + handLimit: int
+        + boardLimit: int
+        + maxMana: int
+        + deckSize: int
+        + {static} standard(): GameConfig
+    }
+
+    class ActionResult <<record>> {
+        + success: boolean
+        + reason: String
+        + {static} ok(): ActionResult
+        + {static} deny(reason: String): ActionResult
+    }
+
+    class TurnManager {
+        - phase: Phase
+        - turnNumber: int
+        + beginTurn()
+        + advance()
+        + endTurn()
+        + isMainPhase(): boolean
+    }
+
+    class ActionValidator {
+        - config: GameConfig
+        + validatePlay(finished, phase, player, handIndex, target): ActionResult
+        + validateAttack(finished, phase, player, attackerIndex, target): ActionResult
+    }
+
+    class GameEngine {
+        - current: Player
+        - finished: boolean
+        - winner: Player
+        + startGame()
+        + playCard(handIndex: int, target: GameCharacter): ActionResult
+        + attack(attackerIndex: int, target: GameCharacter): ActionResult
+        + endTurn(): ActionResult
+        + getCurrentPlayer(): Player
+        + isFinished(): boolean
+    }
+}
+
+package event {
+    interface GameEvent <<sealed>> {
+        + toString(): String
+    }
+
+    interface GameEventListener {
+        + onEvent(event: GameEvent)
+    }
+
+    class EventBus {
+        - listeners: List~GameEventListener~
+        + subscribe(listener: GameEventListener)
+        + unsubscribe(listener: GameEventListener)
+        + publish(event: GameEvent)
+    }
+}
+
+package log {
+    class GameLog {
+        - lines: List~String~
+        + log(message: String)
+        + onEvent(event: GameEvent)
+        + text(): String
+        + {static} render(event: GameEvent): String
+    }
+}
+
+package cards {
+    class CardRegistry <<utility>> {
+        + {static} fireball(): Spell
+        + {static} frostbolt(): Spell
+        + {static} chillwindYeti(): Creature
+        + {static} blessingOfMight(): Modifier
+    }
+
+    class DeckFactory <<utility>> {
+        + {static} standardDeck(seed: long): Deck
+    }
+}
+
+package app {
+    class Main <<utility>> {
+        + {static} main(args: String[])
+        + {static} run(engine: GameEngine)
+    }
+}
+
+GameEngine *-- "1" TurnManager
+GameEngine *-- "1" ActionValidator
+GameEngine *-- "1" EventBus
+GameEngine ..> ActionResult
+GameEngine ..> GameEvent : publishes
+TurnManager --> "1" Phase
+ActionValidator --> "1" GameConfig
+ActionValidator ..> ActionResult
+
+EventBus o-- "0..*" GameEventListener
+EventBus ..> GameEvent
+GameLog ..|> GameEventListener
+GameLog ..> GameEvent
+
+DeckFactory ..> CardRegistry
+Main ..> GameEngine
+
+note right of GameEvent
+  GameStarted, TurnStarted, CardDrawn, CardBurned,
+  CardPlayed, AttackDeclared, DamageDealt, Healed,
+  CreatureDied, ModifierApplied, TurnEnded, GameEnded
+end note
+
+
+@enduml

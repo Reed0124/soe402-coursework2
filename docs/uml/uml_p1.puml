@@ -1,0 +1,193 @@
+@startuml SOE402_Group7_UML_p1
+!pragma layout smetana
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam classFontSize 13
+skinparam classAttributeIconSize 0
+skinparam nodesep 30
+skinparam ranksep 45
+skinparam ArrowThickness 1.2
+hide circle
+hide empty members
+left to right direction
+
+
+package model {
+    class Card <<abstract>> {
+        - name: String
+        - manaCost: int
+        - type: CardType
+        + play(ctx: GameContext, controller: Player, target: GameCharacter)
+        + isValidTarget(controller: Player, target: GameCharacter): boolean
+        + getTargetRequirement(): TargetRequirement
+        + describe(): String
+    }
+
+    class Creature {
+        - baseAttack: int
+        - baseHealth: int
+        - damage: int
+        - frozenTurns: int
+        - canAttack: boolean
+        - owner: Player
+        + play(ctx, controller, target)
+        + beginTurn()
+        + freeze(turns: int)
+        + markAttacked()
+        + addModifier(statMod: StatMod, duration: int)
+        + getAttack(): int
+    }
+
+    class Spell {
+        - effect: Effect
+        + play(ctx, controller, target)
+    }
+
+    class Modifier {
+        - statMod: StatMod
+        - duration: int
+        + play(ctx, controller, target)
+    }
+
+    interface GameCharacter {
+        + getDisplayName(): String
+        + getHealth(): int
+        + getMaxHealth(): int
+        + takeDamage(amount: int)
+        + heal(amount: int)
+        + isDead(): boolean
+    }
+
+    class Player {
+        - name: String
+        - health: int
+        - maxHealth: int
+        - mana: int
+        - maxMana: int
+        - fatigueCounter: int
+        + startTurnMana(cap: int)
+        + spendMana(cost: int)
+        + drawOne(): Optional~Card~
+        + getHand(): List~Card~
+        + getBoard(): List~Creature~
+    }
+
+    class Deck {
+        - cards: Deque~Card~
+        + draw(): Optional~Card~
+        + size(): int
+    }
+
+    interface Effect {
+        + getTargetRequirement(): TargetRequirement
+        + resolve(ctx: GameContext, caster: Player, target: GameCharacter)
+        + describe(): String
+        + isValidTarget(caster: Player, target: GameCharacter): boolean
+    }
+
+    class StatMod <<record>> {
+        + attackBonus: int
+        + healthBonus: int
+        + label: String
+    }
+
+    class AppliedModifier <<record>> {
+        + stat: StatMod
+        + remainingTurns: int
+    }
+
+    enum CardType {
+        CREATURE
+        SPELL
+        MODIFIER
+    }
+
+    enum TargetRequirement {
+        NONE
+        ANY_CHARACTER
+        ENEMY_CHARACTER
+        FRIENDLY_CHARACTER
+        ANY_CREATURE
+        ENEMY_CREATURE
+        FRIENDLY_CREATURE
+    }
+
+    class Targets <<utility>> {
+        + {static} isFriendly(caster, target): boolean
+        + {static} isValid(req, caster, target): boolean
+    }
+
+    interface GameContext {
+        + dealDamage(target, amount, source)
+        + heal(target, amount)
+        + drawCards(player, amount)
+        + summon(controller, creature)
+        + attachModifier(target, statMod, duration)
+        + creaturesOwnedBy(player): List~Creature~
+        + isFinished(): boolean
+        + log(message: String)
+    }
+}
+
+package effect {
+    class DamageEffect {
+        - amount: int
+        + resolve(ctx, caster, target)
+    }
+
+    class HealEffect {
+        - amount: int
+        + resolve(ctx, caster, target)
+    }
+
+    class DrawEffect {
+        - amount: int
+        + resolve(ctx, caster, target)
+    }
+
+    class FreezeEffect {
+        - turns: int
+        + resolve(ctx, caster, target)
+    }
+
+    class AreaDamageEffect {
+        - amount: int
+        + resolve(ctx, caster, target)
+    }
+
+    class CompositeEffect {
+        - effects: List~Effect~
+        + resolve(ctx, caster, target)
+    }
+}
+
+Card <|-- Creature
+Card <|-- Spell
+Card <|-- Modifier
+GameCharacter <|.. Creature
+GameCharacter <|.. Player
+
+Card --> "1" CardType
+Spell o-- "1" Effect : resolves
+Effect ..> GameContext : mutates
+Effect ..> TargetRequirement
+Targets ..> TargetRequirement
+
+Creature o-- "0..*" AppliedModifier
+AppliedModifier --> "1" StatMod
+Modifier --> "1" StatMod
+
+Player o-- "1" Deck
+Player o-- "0..*" Card : hand / discard
+Player o-- "0..*" Creature : board
+
+DamageEffect ..|> Effect
+HealEffect ..|> Effect
+DrawEffect ..|> Effect
+FreezeEffect ..|> Effect
+AreaDamageEffect ..|> Effect
+CompositeEffect ..|> Effect
+CompositeEffect o-- "1..*" Effect
+
+@enduml
