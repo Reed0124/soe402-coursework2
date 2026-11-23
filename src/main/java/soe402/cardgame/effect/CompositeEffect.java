@@ -45,6 +45,14 @@ public class CompositeEffect implements Effect {
         return effects;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The requirement reported here is only a hint: it is the first child requirement that
+     * is not {@link TargetRequirement#NONE}, while {@link #isValidTarget} requires
+     * <em>every</em> child to accept the target. A user interface must therefore call
+     * {@code isValidTarget} for each candidate instead of trusting this value alone.</p>
+     */
     @Override
     public TargetRequirement getTargetRequirement() {
         return effects.stream()
@@ -59,9 +67,19 @@ public class CompositeEffect implements Effect {
         return effects.stream().allMatch(effect -> effect.isValidTarget(caster, target));
     }
 
+    /**
+     * Resolves the children in order and stops as soon as the game is over.
+     *
+     * <p>Without the check a lethal first effect would be followed by, say, a heal, and a hero
+     * who has already lost the game would be restored to positive health while the winner had
+     * already been decided.</p>
+     */
     @Override
     public void resolve(GameContext context, Player caster, GameCharacter target) {
         for (Effect effect : effects) {
+            if (context.isFinished()) {
+                return;
+            }
             effect.resolve(context, caster, target);
         }
     }

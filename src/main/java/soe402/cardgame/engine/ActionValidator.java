@@ -33,11 +33,12 @@ public final class ActionValidator {
      * @param finished  whether the game is already over
      * @param phase     the current phase
      * @param player    the player who wants to play a card
+     * @param opponent  the other player in this game
      * @param handIndex index of the card in that player's hand
      * @param target    the chosen target, possibly {@code null}
      * @return {@link ActionResult#ok()} when the card may be played
      */
-    public ActionResult validatePlay(boolean finished, Phase phase, Player player,
+    public ActionResult validatePlay(boolean finished, Phase phase, Player player, Player opponent,
                                      int handIndex, GameCharacter target) {
         if (finished) {
             return ActionResult.deny("The game is already over");
@@ -57,6 +58,9 @@ public final class ActionValidator {
         if (card.getType() == CardType.CREATURE && player.getBoard().size() >= config.boardLimit()) {
             return ActionResult.deny("The board is full (" + config.boardLimit() + " creatures)");
         }
+        if (!belongsToGame(player, opponent, target)) {
+            return ActionResult.deny("That target is not part of this game");
+        }
         if (!card.isValidTarget(player, target)) {
             return ActionResult.deny("Invalid target for " + card.getName());
         }
@@ -67,11 +71,12 @@ public final class ActionValidator {
      * @param finished      whether the game is already over
      * @param phase         the current phase
      * @param player        the attacking player
+     * @param opponent      the other player in this game
      * @param attackerIndex index of the attacker on that player's board
      * @param target        the character being attacked
      * @return {@link ActionResult#ok()} when the attack may be made
      */
-    public ActionResult validateAttack(boolean finished, Phase phase, Player player,
+    public ActionResult validateAttack(boolean finished, Phase phase, Player player, Player opponent,
                                        int attackerIndex, GameCharacter target) {
         if (finished) {
             return ActionResult.deny("The game is already over");
@@ -100,9 +105,38 @@ public final class ActionValidator {
         if (target == null) {
             return ActionResult.deny("Choose a target to attack");
         }
+        if (!belongsToGame(player, opponent, target)) {
+            return ActionResult.deny("That target is not part of this game");
+        }
         if (Targets.isFriendly(player, target)) {
             return ActionResult.deny("You cannot attack your own character");
         }
         return ActionResult.ok();
+    }
+
+    /**
+     * Checks that a target really takes part in this game.
+     *
+     * <p>Ownership alone is not enough: a player or creature created elsewhere also has an
+     * owner (or is a hero), so reference equality against the two players and membership of
+     * their boards is what makes a target legal. Without this check an action could damage an
+     * object that belongs to another game, or a creature that has already left the board.</p>
+     *
+     * @param player   the active player
+     * @param opponent the other player in this game
+     * @param target   the proposed target, possibly {@code null}
+     * @return {@code true} if the target is one of the two heroes or a creature on a board
+     */
+    private static boolean belongsToGame(Player player, Player opponent, GameCharacter target) {
+        if (target == null) {
+            return true;
+        }
+        if (target == player || target == opponent) {
+            return true;
+        }
+        if (target instanceof Creature creature) {
+            return player.getBoard().contains(creature) || opponent.getBoard().contains(creature);
+        }
+        return false;
     }
 }

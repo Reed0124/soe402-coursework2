@@ -8,7 +8,9 @@ import org.junit.jupiter.api.Test;
 
 import soe402.cardgame.cards.CardRegistry;
 import soe402.cardgame.model.Creature;
+import soe402.cardgame.model.Modifier;
 import soe402.cardgame.model.Player;
+import soe402.cardgame.model.StatMod;
 import soe402.cardgame.support.TestGame;
 
 @DisplayName("GameEngine: modifier cards")
@@ -79,5 +81,54 @@ class ModifierTest {
         engine.playCard(0, engine.getPlayers().get(0).getBoard().get(0));
 
         assertTrue(engine.getLog().text().contains("gains +3 attack"));
+    }
+
+    @Test
+    @DisplayName("a creature dies when the health buff that kept it alive expires")
+    void aCreatureDiesWhenItsHealthBuffExpires() {
+        GameEngine engine = TestGame.startGame(
+                TestGame.deck(CardRegistry.wisp(), CardRegistry.fortitude()),
+                TestGame.deck(CardRegistry.wisp()));
+        Player alice = engine.getPlayers().get(0);
+        engine.playCard(0, null);   // turn 1: the wisp
+        engine.endTurn();           // Bob's turn 2
+        engine.endTurn();           // Alice's turn 3, the fortitude was just drawn
+
+        Creature wisp = alice.getBoard().get(0);
+        assertTrue(engine.playCard(0, wisp).success(), "the wisp becomes 1/4");
+        wisp.takeDamage(3);
+        assertEquals(1, wisp.getHealth());
+        assertEquals(1, alice.getBoard().size());
+
+        engine.endTurn();           // one turn of the buff remains
+        engine.endTurn();           // Bob's turn 4
+        engine.endTurn();           // the buff expires at the end of turn 5
+
+        assertTrue(wisp.isDead(), "losing the buff leaves the wisp below zero health");
+        assertTrue(alice.getBoard().isEmpty(),
+                "a creature that died from a stat change must leave the board");
+        assertEquals(2, alice.getDiscardPile().size(),
+                "both the modifier and the dead creature are in the discard pile");
+        assertTrue(engine.getLog().text().contains("Wisp dies"));
+    }
+
+    @Test
+    @DisplayName("a negative health modifier kills a creature immediately")
+    void aNegativeHealthModifierCanKillOnAttach() {
+        Modifier curse = new Modifier("Curse of Weakness", 1, new StatMod(0, -3, "-3 health"), 2);
+        GameEngine engine = TestGame.startGame(
+                TestGame.deck(CardRegistry.wisp(), curse),
+                TestGame.deck(CardRegistry.wisp()));
+        Player alice = engine.getPlayers().get(0);
+        engine.playCard(0, null);
+        engine.endTurn();
+        engine.endTurn();
+
+        Creature wisp = alice.getBoard().get(0);
+        assertTrue(engine.playCard(0, wisp).success());
+
+        assertTrue(wisp.isDead(), "1 health minus 3 is below zero");
+        assertTrue(alice.getBoard().isEmpty(), "the creature is removed straight away");
+        assertTrue(engine.getLog().text().contains("Wisp dies"));
     }
 }

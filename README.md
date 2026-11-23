@@ -82,15 +82,15 @@ and in `Player.increaseFatigue()`.
 
 ## Testing
 
-The suite has 114 tests across 15 classes and is organised to mirror the main packages:
+The suite has 126 tests across 16 classes and is organised to mirror the main packages:
 
 | Test class | Focus |
 |---|---|
-| `CardTest`, `CreatureTest`, `DeckTest`, `PlayerTest` | Model behaviour, construction input validation, combat state, zones. |
+| `CardTest`, `CreatureTest`, `DeckTest`, `PlayerTest`, `TargetsTest` | Model behaviour, construction input validation, combat state, zones, the target rule matrix. |
 | `TurnManagerTest` | Phase order and the main-phase guard. |
 | `GameEngineTurnTest` | Game start, turn alternation, mana growth and the mana cap. |
 | `PlayCardTest` | Legal and illegal plays, mana, board limit, targeting, discard. |
-| `CombatTest` | Summoning sickness, one attack per turn, retaliation, death. |
+| `CombatTest`, `TargetOwnershipTest` | Summoning sickness, one attack per turn, retaliation, death, and rejection of targets outside the game. |
 | `ModifierTest` | Buff application, duration, illegal target. |
 | `FatigueTest` | Empty deck damage, escalation, lethal fatigue. |
 | `WinConditionTest` | Zero health, winner, rejected actions after the end. |
@@ -99,7 +99,7 @@ The suite has 114 tests across 15 classes and is organised to mirror the main pa
 | `CardRegistryTest`, `FullGameTest` | Card pool, deck building, reproducible end-to-end games. |
 
 Coverage is measured with JaCoCo (`mvn test` writes `target/site/jacoco/index.html`):
-88.6% of lines and 79.4% of branches across the whole project.
+89.9% of lines and 85.1% of branches across the whole project.
 
 Tests never depend on a random shuffle: `Deck` accepts a shuffle flag and the test fixtures
 pass `false`, so the draw order is exactly the order written in the test.

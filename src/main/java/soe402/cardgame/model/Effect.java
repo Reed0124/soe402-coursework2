@@ -15,6 +15,12 @@ package soe402.cardgame.model;
 public interface Effect {
 
     /**
+     * Describes which targets this effect accepts, as a hint for a user interface.
+     *
+     * <p>{@link #isValidTarget(Player, GameCharacter)} is the authoritative check. A composite
+     * effect can report a broader requirement than it actually accepts, because every child
+     * must agree before a target is legal.</p>
+     *
      * @return which targets this effect accepts
      */
     TargetRequirement getTargetRequirement();

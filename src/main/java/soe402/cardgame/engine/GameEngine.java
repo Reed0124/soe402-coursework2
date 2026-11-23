@@ -124,7 +124,8 @@ public final class GameEngine implements GameContext {
      * @return the outcome, including a reason when the play is rejected
      */
     public ActionResult playCard(int handIndex, GameCharacter target) {
-        ActionResult check = validator.validatePlay(finished, turns.getPhase(), current, handIndex, target);
+        ActionResult check = validator.validatePlay(finished, turns.getPhase(), current,
+                opponentOf(current), handIndex, target);
         if (check.isDenied()) {
             return check;
         }
@@ -151,7 +152,8 @@ public final class GameEngine implements GameContext {
      * @return the outcome, including a reason when the attack is rejected
      */
     public ActionResult attack(int attackerIndex, GameCharacter target) {
-        ActionResult check = validator.validateAttack(finished, turns.getPhase(), current, attackerIndex, target);
+        ActionResult check = validator.validateAttack(finished, turns.getPhase(), current,
+                opponentOf(current), attackerIndex, target);
         if (check.isDenied()) {
             return check;
         }
@@ -180,6 +182,7 @@ public final class GameEngine implements GameContext {
         for (Creature creature : current.getBoard()) {
             creature.tickModifiers();
         }
+        removeDeadCreatures();
         turns.endTurn();
         events.publish(new GameEvent.TurnEnded(current.getName()));
         beginTurn(opponentOf(current));
@@ -190,7 +193,7 @@ public final class GameEngine implements GameContext {
 
     @Override
     public void dealDamage(GameCharacter target, int amount, GameCharacter source) {
-        if (target == null || amount <= 0 || target.isDead()) {
+        if (finished || target == null || amount <= 0 || target.isDead()) {
             return;
         }
         target.takeDamage(amount);
@@ -205,7 +208,7 @@ public final class GameEngine implements GameContext {
 
     @Override
     public void heal(GameCharacter target, int amount) {
-        if (target == null || amount <= 0) {
+        if (finished || target == null || amount <= 0) {
             return;
         }
         int before = target.getHealth();
@@ -218,7 +221,7 @@ public final class GameEngine implements GameContext {
 
     @Override
     public void drawCards(Player player, int amount) {
-        for (int i = 0; i < amount; i++) {
+        for (int i = 0; i < amount && !finished; i++) {
             Optional<Card> drawn = player.drawOne();
             if (drawn.isEmpty()) {
                 int fatigue = player.increaseFatigue();
@@ -241,6 +244,9 @@ public final class GameEngine implements GameContext {
 
     @Override
     public void summon(Player controller, Creature creature) {
+        if (finished) {
+            return;
+        }
         controller.addToBoard(creature);
         log.log(controller.getName() + " summons " + creature.getName()
                 + " (" + creature.getAttack() + "/" + creature.getHealth() + ")");
@@ -248,8 +254,14 @@ public final class GameEngine implements GameContext {
 
     @Override
     public void attachModifier(Creature target, StatMod statMod, int duration) {
+        if (finished) {
+            return;
+        }
         target.addModifier(statMod, duration);
         events.publish(new GameEvent.ModifierApplied(target.getDisplayName(), statMod.label(), duration));
+        if (target.isDead()) {
+            destroy(target);
+        }
     }
 
     @Override
@@ -272,13 +284,29 @@ public final class GameEngine implements GameContext {
         log.log(message);
     }
 
+    /**
+     * Removes creatures that died from a stat change rather than from damage.
+     *
+     * <p>Losing a health buff at the end of a turn can push a creature to zero health without
+     * any damage being dealt, so the death check has to run after modifiers are ticked as well
+     * as inside {@link #dealDamage}.</p>
+     */
+    private void removeDeadCreatures() {
+        for (Player player : players) {
+            for (Creature creature : player.getBoard()) {
+                if (creature.isDead()) {
+                    destroy(creature);
+                }
+            }
+        }
+    }
+
     private void destroy(Creature creature) {
         Player owner = creature.getOwner();
-        if (owner != null) {
-            owner.removeFromBoard(creature);
+        if (owner != null && owner.removeFromBoard(creature)) {
             owner.addToDiscard(creature);
+            events.publish(new GameEvent.CreatureDied(creature.getDisplayName()));
         }
-        events.publish(new GameEvent.CreatureDied(creature.getDisplayName()));
     }
 
     private void checkForWinner() {
