@@ -141,4 +141,21 @@ class CombatTest {
         assertTrue(engine.getLog().text().contains("Bear attacks Bob"));
         assertTrue(engine.getLog().text().contains("Bob takes 2 damage from Bear"));
     }
+
+    @Test
+    @DisplayName("an attack rejects outsiders and creatures that have left the board")
+    void attackRequiresATargetInThisGame() {
+        GameEngine engine = gameWithTwoCreatures();
+        Player outsider = TestGame.player("Outsider", TestGame.deck());
+        Player bob = engine.getOpponent();
+        Creature wall = bob.getBoard().get(0);
+        bob.removeFromBoard(wall);
+
+        assertTrue(engine.attack(0, outsider).isDenied());
+        assertTrue(engine.attack(0, wall).isDenied());
+        assertEquals(30, outsider.getHealth());
+        assertEquals(4, wall.getHealth());
+        assertEquals(30, bob.getHealth());
+        assertTrue(engine.attack(0, bob).success(), "the rejected attacks did not use the attack");
+    }
 }

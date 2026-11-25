@@ -18,11 +18,15 @@ To watch a full game in the console:
 ```
 mvn -q compile
 java -cp target/classes soe402.cardgame.app.Main
-java -cp target/classes soe402.cardgame.app.Main 42   # a different shuffle
+java -cp target/classes soe402.cardgame.app.Main 42      # a different shuffle
+java -cp target/classes soe402.cardgame.app.Main --play  # two players, one keyboard
 ```
 
+`--play` starts a hot-seat match: both players type their moves in the same console, the
+screen is cleared between turns, and `help` lists the commands.
+
 The demo is deterministic: the same seed always produces the same game, which is also what the
-end-to-end test relies on.
+end-to-end test relies on. `--play` shares the same engine and only adds an input layer.
 
 ## Project layout
 
@@ -34,7 +38,7 @@ end-to-end test relies on.
 | `soe402.cardgame.event` | `GameEvent` (a sealed hierarchy of records), `EventBus` and the listener interface. |
 | `soe402.cardgame.log` | `GameLog`, which renders events into readable lines. |
 | `soe402.cardgame.cards` | `CardRegistry` (card pool) and `DeckFactory` (deck construction). |
-| `soe402.cardgame.app` | `Main`, the console demonstration. |
+| `soe402.cardgame.app` | `Main`: the scripted demonstration and the local two-player console. |
 
 ## Design decisions
 
@@ -82,7 +86,7 @@ and in `Player.increaseFatigue()`.
 
 ## Testing
 
-The suite has 126 tests across 16 classes and is organised to mirror the main packages:
+The suite has 128 tests across 16 classes and is organised to mirror the main packages:
 
 | Test class | Focus |
 |---|---|
@@ -99,7 +103,9 @@ The suite has 126 tests across 16 classes and is organised to mirror the main pa
 | `CardRegistryTest`, `FullGameTest` | Card pool, deck building, reproducible end-to-end games. |
 
 Coverage is measured with JaCoCo (`mvn test` writes `target/site/jacoco/index.html`):
-89.9% of lines and 85.1% of branches across the whole project.
+91.2% of lines and 85.3% of branches across the model, effect and engine packages. Including the
+interactive console in `Main`, which is driven by hand rather than by unit tests, the project as a
+whole reports 76.0% of lines.
 
 Tests never depend on a random shuffle: `Deck` accepts a shuffle flag and the test fixtures
 pass `false`, so the draw order is exactly the order written in the test.

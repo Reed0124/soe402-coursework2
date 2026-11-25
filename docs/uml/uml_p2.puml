@@ -48,8 +48,8 @@ package engine {
 
     class ActionValidator {
         - config: GameConfig
-        + validatePlay(finished, phase, player, opponent, handIndex, target): ActionResult
-        + validateAttack(finished, phase, player, opponent, attackerIndex, target): ActionResult
+        + validatePlay(finished, phase, player, opponent,\n  handIndex, target): ActionResult
+        + validateAttack(finished, phase, player, opponent,\n  attackerIndex, target): ActionResult
     }
 
     class GameEngine {

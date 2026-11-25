@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import soe402.cardgame.cards.CardRegistry;
 import soe402.cardgame.effect.HealEffect;
+import soe402.cardgame.model.Creature;
 import soe402.cardgame.model.Player;
 import soe402.cardgame.model.Spell;
 import soe402.cardgame.support.TestGame;
@@ -146,5 +147,25 @@ class PlayCardTest {
         assertTrue(engine.playCard(0, alice).success());
         assertEquals(23, alice.getHealth());
         assertTrue(engine.getLog().text().contains("is healed for 5"));
+    }
+
+    @Test
+    @DisplayName("an invalid spell target costs no mana or card")
+    void spellRequiresATargetInThisGame() {
+        Spell bolt = TestGame.damageSpell("Bolt", 1, 3);
+        GameEngine engine = TestGame.startGame(TestGame.deck(bolt), TestGame.deck(CardRegistry.wisp()));
+        Player alice = engine.getCurrentPlayer();
+        Player outsider = TestGame.player("Outsider", TestGame.deck());
+        Creature offBoard = CardRegistry.wisp();
+
+        assertTrue(engine.playCard(0, outsider).isDenied());
+        assertTrue(engine.playCard(0, offBoard).isDenied());
+        assertEquals(30, outsider.getHealth());
+        assertEquals(1, offBoard.getHealth());
+        assertEquals(1, alice.getMana());
+        assertEquals(bolt, alice.getHand().get(0));
+        assertTrue(alice.getDiscardPile().isEmpty());
+        assertTrue(engine.playCard(0, engine.getOpponent()).success());
+        assertEquals(27, engine.getOpponent().getHealth());
     }
 }
